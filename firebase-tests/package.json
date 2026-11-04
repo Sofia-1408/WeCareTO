@@ -1,0 +1,14 @@
+{
+  "name": "wecareto-firebase-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-wecareto --config ../firebase.json \"node --test --test-concurrency=1 firestore.test.mjs\"",
+    "test:android": "firebase emulators:exec --only auth,firestore --project demo-wecareto --config ../firebase.json \"node run-android-tests.mjs\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.0",
+    "firebase": "^12.0.0",
+    "firebase-tools": "^15.0.0"
+  }
+}

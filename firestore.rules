@@ -1,0 +1,29 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/intakes/{intakeId} {
+      function owner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      function validIntake() {
+        let d = request.resource.data;
+        return d.keys().hasAll(['id', 'category', 'helpingSomeoneElse', 'name', 'phone', 'location', 'details', 'createdAtMillis'])
+          && d.keys().hasOnly(['id', 'category', 'helpingSomeoneElse', 'name', 'phone', 'location', 'details', 'createdAtMillis'])
+          && d.id == intakeId && d.id is string && d.id.size() <= 100
+          && d.category in ['Housing / Shelter', 'Food / Essentials', 'Transportation', 'Other Support']
+          && d.helpingSomeoneElse is bool
+          && d.name is string && d.name.size() <= 100
+          && d.phone is string && d.phone.size() <= 30
+          && (d.phone == '' || (d.phone.matches('^[+0-9() .-]+$') && d.phone.replace('[^0-9]', '').size() == 10))
+          && d.location is string && d.location.size() <= 200
+          && d.details is string && d.details.size() <= 2000
+          && d.createdAtMillis is int && d.createdAtMillis > 0
+          && d.createdAtMillis <= request.time.toMillis() + 300000;
+      }
+      allow create: if owner() && validIntake();
+      allow get, list, delete: if owner();
+      // A retry may write the same draft again, but cannot change an accepted intake.
+      allow update: if owner() && validIntake() && request.resource.data == resource.data;
+    }
+  }
+}

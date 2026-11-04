@@ -16,11 +16,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-import com.example.wecareto_project.data.ResourceRepository
+import com.example.wecareto_project.viewmodel.ResourceUiState
 
 @Composable
 fun RecommendedResourcesScreen(
     initialCategory: String,
+    state: ResourceUiState,
+    onRetry: () -> Unit,
     onViewDetailsClick: (String) -> Unit
 ) {
 
@@ -71,7 +73,7 @@ fun RecommendedResourcesScreen(
 
     // Load resources from ResourceRepository
     // and filter based on selected category and search
-    val visibleResources = ResourceRepository.resources.filter { resource ->
+    val visibleResources = state.resources.filter { resource ->
 
         val matchesCategory = when (selectedFilter) {
 
@@ -80,13 +82,15 @@ fun RecommendedResourcesScreen(
             "Housing / Shelter" ->
                 resource.category in listOf(
                     "Housing",
-                    "Shelter"
+                    "Shelter",
+                    "Housing / Shelter"
                 )
 
             "Food / Essentials" ->
                 resource.category in listOf(
                     "Food",
-                    "Essentials"
+                    "Essentials",
+                    "Food / Essentials"
                 )
 
             "Transportation" ->
@@ -141,6 +145,18 @@ fun RecommendedResourcesScreen(
             fontWeight = FontWeight.Bold,
             color = Color.Black
         )
+
+        if (state.isLoading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Text("Updating Toronto resources…")
+        }
+        state.error?.let { message ->
+            Text(message, color = MaterialTheme.colorScheme.error)
+        }
+        OutlinedButton(onClick = onRetry, enabled = !state.isLoading) {
+            Text("Refresh resources")
+        }
+        Text("Shelter entries come from Toronto Open Data. Other categories include 211 referrals. Listings do not confirm availability.")
 
         // Search bar
         OutlinedTextField(
@@ -226,13 +242,13 @@ fun RecommendedResourcesScreen(
                     .uppercase(),
 
                 onClick = {
-                    onViewDetailsClick(resource.name)
+                    onViewDetailsClick(resource.id)
                 }
             )
         }
 
         // Message when no resources match
-        if (visibleResources.isEmpty()) {
+        if (visibleResources.isEmpty() && !state.isLoading) {
 
             Text(
                 text = "No resources found",

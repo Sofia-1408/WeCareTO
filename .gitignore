@@ -13,3 +13,19 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase configuration is supplied separately for each environment.
+/app/google-services.json
+/firebase-tests/node_modules/
+/firebase-debug.log
+/firestore-debug.log
+
+# Local notes and recovery files
+/BACKEND_CHANGES.md
+/BACKEND_SETUP.md
+/backend-change-record.json
+/backend-originals.zip
+/tools/undo_backend.py
+
+# Output from local Firebase tests
+/firebase-tests/*-debug.log

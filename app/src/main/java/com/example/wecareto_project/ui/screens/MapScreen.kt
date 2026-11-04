@@ -1,5 +1,7 @@
 package com.example.wecareto_project.ui.screens
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ fun MapScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -66,12 +69,13 @@ fun MapScreen(
 
         // Location information
         Text(
-            text = "Location and directions will be available once the resource address is verified."
+            text = "Maps, GPS and directions are planned for a later version."
         )
 
         // Get Directions button
         Button(
             onClick = onGetDirectionsClick,
+            enabled = false,
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("Get Directions")
