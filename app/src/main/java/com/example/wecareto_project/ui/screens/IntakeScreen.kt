@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -25,11 +26,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.wecareto_project.data.IntakeResponse
+import com.example.wecareto_project.viewmodel.IntakeSubmissionState
 
 @Composable
 fun IntakeScreen(
     selectedCategory: String,
     onFindResourcesClick: () -> Unit,
+    onSaveIntake: (IntakeResponse) -> Unit,
+    submission: IntakeSubmissionState,
+    savingAvailable: Boolean,
     onBackClick: () -> Unit
 ) {
     // User can request assistance for themselves or someone else
@@ -53,6 +59,14 @@ fun IntakeScreen(
     var details by rememberSaveable {
         mutableStateOf("")
     }
+
+    var saveOnline by rememberSaveable { mutableStateOf(false) }
+    val response = IntakeResponse(
+        category = selectedCategory, helpingSomeoneElse = helpingSomeoneElse,
+        name = name.trim(), phone = phone.trim(), location = location.trim(), details = details.trim()
+    )
+    val validationError = response.validationError()
+    val fieldsEnabled = !submission.saving && submission.savedId == null
 
     // Phone number must contain 10 digits if provided
     val phoneValid = phone.isBlank() ||
@@ -102,6 +116,7 @@ fun IntakeScreen(
         ) {
             RadioButton(
                 selected = !helpingSomeoneElse,
+                enabled = fieldsEnabled,
                 onClick = {
                     helpingSomeoneElse = false
                 }
@@ -115,6 +130,7 @@ fun IntakeScreen(
         ) {
             RadioButton(
                 selected = helpingSomeoneElse,
+                enabled = fieldsEnabled,
                 onClick = {
                     helpingSomeoneElse = true
                 }
@@ -136,6 +152,7 @@ fun IntakeScreen(
 
         // Name
         OutlinedTextField(
+            enabled = fieldsEnabled,
             value = name,
             onValueChange = {
                 name = it
@@ -149,6 +166,7 @@ fun IntakeScreen(
 
         // Phone number
         OutlinedTextField(
+            enabled = fieldsEnabled,
             value = phone,
             onValueChange = {
                 phone = it
@@ -171,6 +189,7 @@ fun IntakeScreen(
 
         // Location
         OutlinedTextField(
+            enabled = fieldsEnabled,
             value = location,
             onValueChange = {
                 location = it
@@ -184,6 +203,7 @@ fun IntakeScreen(
 
         // Additional information
         OutlinedTextField(
+            enabled = fieldsEnabled,
             value = details,
             onValueChange = {
                 details = it
@@ -198,19 +218,48 @@ fun IntakeScreen(
         // Safety information
         Text(
             text = "WeCareTO helps you discover community resources. " +
-                    "This prototype does not submit requests or " +
+                    "Saving your intake does not request a service or " +
                     "dispatch emergency responders. " +
                     "If someone is in immediate danger, call 911.",
             style = MaterialTheme.typography.bodySmall
         )
 
-        // Continue to recommended resources
+        if (submission.savedId == null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = saveOnline,
+                    enabled = savingAvailable && !submission.saving,
+                    onCheckedChange = { saveOnline = it }
+                )
+                Text("Save these answers online. I agree to send the information above to this app’s Firebase project.")
+            }
+            if (!savingAvailable) {
+                Text("Online saving hasn’t been configured. You can browse without saving.")
+            }
+        }
+        validationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        submission.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        submission.savedId?.let { id ->
+            Text("Intake saved", style = MaterialTheme.typography.titleMedium)
+            Text("Assistance: $selectedCategory")
+            Text("For: ${if (helpingSomeoneElse) "Someone else" else "Myself"}")
+            Text("Reference: $id")
+            Text("Your information was saved. No provider has been contacted.")
+        }
         Button(
-            onClick = onFindResourcesClick,
-            enabled = phoneValid,
+            onClick = {
+                if (saveOnline && submission.savedId == null) onSaveIntake(response)
+                else onFindResourcesClick()
+            },
+            enabled = validationError == null && phoneValid && !submission.saving,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Find Resources")
+            Text(when {
+                submission.saving -> "Saving…"
+                submission.savedId != null -> "View Resources"
+                saveOnline -> "Save Intake"
+                else -> "Find Resources Without Saving"
+            })
         }
     }
 }

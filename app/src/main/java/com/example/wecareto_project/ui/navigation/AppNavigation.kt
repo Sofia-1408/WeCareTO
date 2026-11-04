@@ -4,131 +4,81 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
-import com.example.wecareto_project.ui.screens.SplashScreen
-import com.example.wecareto_project.ui.screens.HomeScreen
-import com.example.wecareto_project.ui.screens.AssistanceTypeScreen
-import com.example.wecareto_project.ui.screens.IntakeScreen
-import com.example.wecareto_project.ui.screens.RecommendedResourcesScreen
-import com.example.wecareto_project.ui.screens.ResourceDetailsScreen
-import com.example.wecareto_project.ui.screens.MapScreen
+import com.example.wecareto_project.WeCareApplication
+import com.example.wecareto_project.ui.screens.*
+import com.example.wecareto_project.viewmodel.BackendViewModelFactory
+import com.example.wecareto_project.viewmodel.IntakeSubmissionViewModel
+import com.example.wecareto_project.viewmodel.ResourceViewModel
 
 @Composable
 fun AppNavigation() {
-
     val navController = rememberNavController()
+    val application = LocalContext.current.applicationContext as WeCareApplication
+    val factory = remember(application) { BackendViewModelFactory(application.container) }
+    val resourcesViewModel: ResourceViewModel = viewModel(factory = factory)
+    val resources by resourcesViewModel.state.collectAsStateWithLifecycle()
+    var selectedCategory by rememberSaveable { mutableStateOf("") }
 
-    // Store selected assistance category
-    var selectedCategory by remember {
-        mutableStateOf("")
-    }
-
-    // Store selected resource name
-    var selectedResourceName by remember {
-        mutableStateOf("")
-    }
-
-    NavHost(
-        navController = navController,
-        startDestination = Screen.SPLASH
-    ) {
-
-        // Splash Screen
+    NavHost(navController = navController, startDestination = Screen.SPLASH) {
         composable(Screen.SPLASH) {
-            SplashScreen(
-                onSplashFinished = {
-                    navController.navigate(Screen.HOME) {
-                        popUpTo(Screen.SPLASH) {
-                            inclusive = true
-                        }
-                    }
-                }
-            )
+            SplashScreen(onSplashFinished = {
+                navController.navigate(Screen.HOME) { popUpTo(Screen.SPLASH) { inclusive = true } }
+            })
         }
-
-        // Home Screen
         composable(Screen.HOME) {
-            HomeScreen(
-                onGetHelpClick = {
-                    navController.navigate(Screen.ASSISTANCE_TYPE)
-                }
-            )
+            HomeScreen(onGetHelpClick = { navController.navigate(Screen.ASSISTANCE_TYPE) })
         }
-
-        // Assistance Type Screen
         composable(Screen.ASSISTANCE_TYPE) {
-            AssistanceTypeScreen(
-                onContinueClick = { category ->
-                    selectedCategory = category
-                    navController.navigate(Screen.INTAKE)
-                }
-            )
+            AssistanceTypeScreen(onContinueClick = { category ->
+                selectedCategory = category
+                navController.navigate(Screen.INTAKE)
+            })
         }
-
-        // Intake Screen
         composable(Screen.INTAKE) {
+            val intakeViewModel: IntakeSubmissionViewModel = viewModel(factory = factory)
+            val submission by intakeViewModel.state.collectAsStateWithLifecycle()
             IntakeScreen(
                 selectedCategory = selectedCategory,
-
-                onFindResourcesClick = {
-                    navController.navigate(
-                        Screen.RECOMMENDED_RESOURCES
-                    )
-                },
-
-                onBackClick = {
-                    navController.popBackStack()
-                }
+                onFindResourcesClick = { navController.navigate(Screen.RECOMMENDED_RESOURCES) },
+                onSaveIntake = intakeViewModel::submit,
+                submission = submission,
+                savingAvailable = intakeViewModel.isConfigured,
+                onBackClick = { navController.popBackStack() }
             )
         }
-
-        // Recommended Resources Screen
         composable(Screen.RECOMMENDED_RESOURCES) {
             RecommendedResourcesScreen(
-                initialCategory = selectedCategory,
-
-                onViewDetailsClick = { resourceName ->
-
-                    selectedResourceName = resourceName
-
-                    navController.navigate("resource_details")
-                }
+                initialCategory = selectedCategory, state = resources,
+                onRetry = resourcesViewModel::refresh,
+                onViewDetailsClick = { id -> navController.navigate("resource_details/$id") }
             )
         }
-
-        // Resource Details Screen
-        composable("resource_details") {
+        composable("resource_details/{resourceId}", arguments = listOf(navArgument("resourceId") { type = NavType.StringType })) { entry ->
+            val id = entry.arguments?.getString("resourceId")
             ResourceDetailsScreen(
-                resourceName = selectedResourceName,
-
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
-                onGetDirectionsClick = {
-                    navController.navigate("map")
-                }
+                resource = resources.resources.firstOrNull { it.id == id },
+                isLoading = resources.isLoading,
+                onBackClick = { navController.popBackStack() },
+                onViewMapClick = { id?.let { navController.navigate("map/$it") } }
             )
         }
-
-        // Map Screen
-        composable("map") {
+        composable("map/{resourceId}", arguments = listOf(navArgument("resourceId") { type = NavType.StringType })) { entry ->
+            val id = entry.arguments?.getString("resourceId")
+            val resource = resources.resources.firstOrNull { it.id == id }
             MapScreen(
-                resourceName = selectedResourceName,
-
-                onBackClick = {
-                    navController.popBackStack()
-                },
-
-                onGetDirectionsClick = {
-                    // Directions integration will be added
-                    // once resource addresses are verified
-                }
+                resourceName = resource?.name ?: if (resources.isLoading) "Loading resource…" else "Resource unavailable",
+                onBackClick = { navController.popBackStack() },
+                onGetDirectionsClick = { }
             )
         }
     }
