@@ -1,77 +1,37 @@
 package com.example.wecareto_project.ui.screens
-
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.wecareto_project.data.IntakeResponse
-import com.example.wecareto_project.viewmodel.IntakeSubmissionState
+import com.example.wecareto_project.data.SafetyAnswer
+import com.example.wecareto_project.ui.viewmodel.IntakeFormViewModel
 
 @Composable
 fun IntakeScreen(
-    selectedCategory: String,
-    onFindResourcesClick: () -> Unit,
-    onSaveIntake: (IntakeResponse) -> Unit,
-    submission: IntakeSubmissionState,
+    form: IntakeFormViewModel,
     savingAvailable: Boolean,
+    onReviewClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    // User can request assistance for themselves or someone else
-    var helpingSomeoneElse by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    // All personal information is optional
-    var name by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var phone by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var location by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var details by rememberSaveable {
-        mutableStateOf("")
-    }
-
-    var saveOnline by rememberSaveable { mutableStateOf(false) }
-    val response = IntakeResponse(
-        category = selectedCategory, helpingSomeoneElse = helpingSomeoneElse,
-        name = name.trim(), phone = phone.trim(), location = location.trim(), details = details.trim()
-    )
-    val validationError = response.validationError()
-    val fieldsEnabled = !submission.saving && submission.savedId == null
-
-    // Phone number must contain 10 digits if provided
-    val phoneValid = phone.isBlank() ||
-            phone.count { it.isDigit() } == 10
-
+    //this screen reads and updates through IntakeFormViewModel
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,187 +39,234 @@ fun IntakeScreen(
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-
-        // Back button
         TextButton(onClick = onBackClick) {
             Text("← Back")
         }
-
-        // Screen title
         Text(
             text = "Request Assistance",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-
         Text(
-            text = "Find community resources without creating " +
-                    "an account or sharing your identity."
+            "Find community resources without an account " +
+                    "or sharing your identity."
         )
-
-        // Category selected on the previous screen
         Text(
-            text = "Selected assistance: $selectedCategory",
+            text = "Selected assistance: ${form.category}",
             fontWeight = FontWeight.SemiBold
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Assistance recipient
+        //Assistance recipient
         Text(
             text = "Who needs assistance?",
             style = MaterialTheme.typography.titleMedium
         )
-
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadioButton(
-                selected = !helpingSomeoneElse,
-                enabled = fieldsEnabled,
+                selected = !form.helpingSomeoneElse,
                 onClick = {
-                    helpingSomeoneElse = false
+                    form.updateHelpingSomeoneElse(false)
                 }
             )
-
             Text("Myself")
         }
-
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
             RadioButton(
-                selected = helpingSomeoneElse,
-                enabled = fieldsEnabled,
+                selected = form.helpingSomeoneElse,
                 onClick = {
-                    helpingSomeoneElse = true
+                    form.updateHelpingSomeoneElse(true)
                 }
             )
-
             Text("Someone Else")
         }
-
-        // Optional information section
+        //Optional information
         Text(
             text = "Optional Information",
             style = MaterialTheme.typography.titleMedium
         )
 
         Text(
-            text = "You can leave these fields blank " +
-                    "and continue anonymously."
+            "You can leave personal details blank " +
+                    "and browse anonymously."
         )
-
-        // Name
+        //Name
         OutlinedTextField(
-            enabled = fieldsEnabled,
-            value = name,
-            onValueChange = {
-                name = it
-            },
+            value = form.name,
+            onValueChange = form::updateName,
             label = {
                 Text("Name (Optional)")
             },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Phone number
-        OutlinedTextField(
-            enabled = fieldsEnabled,
-            value = phone,
-            onValueChange = {
-                phone = it
-            },
-            label = {
-                Text("Phone Number (Optional)")
-            },
-            isError = !phoneValid,
+            isError = form.nameError != null,
             supportingText = {
-                if (!phoneValid) {
-                    Text(
-                        "Enter a 10-digit phone number " +
-                                "or leave this field blank."
-                    )
+                form.nameError?.let {
+                    Text(it)
                 }
             },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-
-        // Location
+        //Phone
         OutlinedTextField(
-            enabled = fieldsEnabled,
-            value = location,
-            onValueChange = {
-                location = it
-            },
+            value = form.phone,
+            onValueChange = form::updatePhone,
             label = {
-                Text("Toronto Neighbourhood or Postal Code")
+                Text("Phone Number (Optional)")
+            },
+            isError = form.phoneError != null,
+            supportingText = {
+                form.phoneError?.let {
+                    Text(it)
+                }
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Phone
+            ),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        //Location
+        OutlinedTextField(
+            value = form.location,
+            onValueChange = form::updateLocation,
+            label = {
+                Text("Toronto Neighbourhood or Postal Code (Optional)")
+            },
+            isError = form.locationError != null,
+            supportingText = {
+                form.locationError?.let {
+                    Text(it)
+                }
             },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
         )
-
-        // Additional information
+        //Additional details
         OutlinedTextField(
-            enabled = fieldsEnabled,
-            value = details,
-            onValueChange = {
-                details = it
-            },
+            value = form.details,
+            onValueChange = form::updateDetails,
             label = {
                 Text("Additional Details (Optional)")
+            },
+            isError = form.detailsError != null,
+            supportingText = {
+                form.detailsError?.let {
+                    Text(it)
+                }
             },
             minLines = 3,
             modifier = Modifier.fillMaxWidth()
         )
-
-        // Safety information
+        //Safety questions
         Text(
-            text = "WeCareTO helps you discover community resources. " +
-                    "Saving your intake does not request a service or " +
-                    "dispatch emergency responders. " +
-                    "If someone is in immediate danger, call 911.",
+            text = "Safety questions (optional)",
+            style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+            "These answers help us show urgent contact " +
+                    "information. WeCareTO does not perform a " +
+                    "clinical assessment or dispatch services."
+        )
+        SafetyQuestion(
+            question = "Is anyone in immediate danger or needing urgent medical help?",
+            answer = form.immediateDanger,
+            onAnswer = form::updateImmediateDanger,
+            unsureLabel = "Not sure"
+        )
+        SafetyQuestion(
+            question = "Is there a concern about suicide or self-harm?",
+            answer = form.suicideConcern,
+            onAnswer = form::updateSuicideConcern,
+            unsureLabel = "Not sure / Prefer not to say"
+        )
+        SafetySupport(
+            form.immediateDanger,
+            form.suicideConcern
+        )
+        Text(
+            text = "If someone is in immediate danger, call 911. " +
+                    "For suicide-related support in Canada, call or text 988. " +
+                    "Saving information here does not contact a service provider.",
             style = MaterialTheme.typography.bodySmall
         )
-
-        if (submission.savedId == null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+        //Optional Firebase saving
+        if (savingAvailable) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Checkbox(
-                    checked = saveOnline,
-                    enabled = savingAvailable && !submission.saving,
-                    onCheckedChange = { saveOnline = it }
+                    checked = form.saveOnline,
+                    onCheckedChange = form::updateSaveOnline
                 )
-                Text("Save these answers online. I agree to send the information above to this app’s Firebase project.")
+                Text(
+                    "I choose to save my assistance type, recipient " +
+                            "and optional contact, location and details " +
+                            "to this app's Firebase database. " +
+                            "Safety-question answers are not stored. " +
+                            "This does not request emergency or service dispatch."
+                )
             }
-            if (!savingAvailable) {
-                Text("Online saving hasn’t been configured. You can browse without saving.")
-            }
+        } else {
+            Text(
+                "Online saving is not configured. " +
+                        "You can still browse resources without saving."
+            )
         }
-        validationError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        submission.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        submission.savedId?.let { id ->
-            Text("Intake saved", style = MaterialTheme.typography.titleMedium)
-            Text("Assistance: $selectedCategory")
-            Text("For: ${if (helpingSomeoneElse) "Someone else" else "Myself"}")
-            Text("Reference: $id")
-            Text("Your information was saved. No provider has been contacted.")
+        //Validate using the existing IntakeResponse model
+        val error = form.validationError
+        if (
+            error != null &&
+            error !in listOfNotNull(
+                form.nameError,
+                form.phoneError,
+                form.locationError,
+                form.detailsError
+            )
+        ) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error
+            )
         }
+        //Navigate to confirmation
         Button(
-            onClick = {
-                if (saveOnline && submission.savedId == null) onSaveIntake(response)
-                else onFindResourcesClick()
-            },
-            enabled = validationError == null && phoneValid && !submission.saving,
+            onClick = onReviewClick,
+            enabled = error == null,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(when {
-                submission.saving -> "Saving…"
-                submission.savedId != null -> "View Resources"
-                saveOnline -> "Save Intake"
-                else -> "Find Resources Without Saving"
-            })
+            Text("Review Information")
+        }
+    }
+}
+
+@Composable
+private fun SafetyQuestion( //reusable radio button group for each safety question
+    question: String,
+    answer: SafetyAnswer?,
+    onAnswer: (SafetyAnswer) -> Unit,
+    unsureLabel: String
+) {
+    Text(
+        text = question,
+        fontWeight = FontWeight.SemiBold
+    )
+    listOf(
+        SafetyAnswer.YES to "Yes",
+        SafetyAnswer.NO to "No",
+        SafetyAnswer.NOT_SURE to unsureLabel
+    ).forEach { (value, label) ->
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            RadioButton(
+                selected = answer == value,
+                onClick = {
+                    onAnswer(value)
+                }
+            )
+            Text(label)
         }
     }
 }

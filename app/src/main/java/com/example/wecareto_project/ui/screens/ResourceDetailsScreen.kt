@@ -1,5 +1,4 @@
 package com.example.wecareto_project.ui.screens
-
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -32,47 +31,125 @@ fun ResourceDetailsScreen(
     onViewMapClick: () -> Unit
 ) {
     val context = LocalContext.current
-    fun open(intent: Intent) {
-        try { context.startActivity(intent) }
-        catch (_: ActivityNotFoundException) {
-            Toast.makeText(context, "No app is available to open this action.", Toast.LENGTH_SHORT).show()
+    fun open(intent: Intent) { //dont crash if you can't find a dialer or a browser
+        try {
+            context.startActivity(intent)
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(
+                context,
+                "No app is available to open this action.",
+                Toast.LENGTH_SHORT
+            ).show()
+        } catch (_: SecurityException) {
+            Toast.makeText(
+                context,
+                "Unable to open this action on this device.",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
     Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        OutlinedButton(onClick = onBackClick) { Text("← Back") }
+        OutlinedButton(onClick = onBackClick) {
+            Text("← Back")
+        }
         if (resource == null) {
-            if (isLoading) CircularProgressIndicator()
-            else Text("This resource is no longer in the saved list. Go back and refresh resources.")
+            if (isLoading) {
+                CircularProgressIndicator()
+            } else {
+                Text(
+                    "This resource is no longer in the saved list. " +
+                            "Go back and refresh resources."
+                )
+            }
         } else {
-            Text(resource.name, style = MaterialTheme.typography.headlineMedium)
+            Text(
+                text = resource.name,
+                style = MaterialTheme.typography.headlineMedium
+            )
             Text(resource.description)
             Text("Category: ${resource.category}")
             Text("Address: ${resource.address}")
-            Text("Phone: ${resource.phone.ifBlank { "Not supplied by this source" }}")
+            Text(
+                "Phone: ${resource.phone.ifBlank {
+                    "Not supplied by this source"
+                }}"
+            )
             Text("Hours: ${resource.operatingHours}")
             Text("Source: ${resource.source}")
-            if (resource.reportedDate.isNotBlank()) Text("Reported: ${resource.reportedDate}")
-            if (resource.updatedAtMillis > 0) {
-                Text("Downloaded: ${DateFormat.getDateTimeInstance().format(Date(resource.updatedAtMillis))}")
+            if (resource.reportedDate.isNotBlank()) {
+                Text("Reported: ${resource.reportedDate}")
             }
+            if (resource.updatedAtMillis > 0) {
+                Text(
+                    "Downloaded: ${
+                        DateFormat.getDateTimeInstance().format(
+                            Date(resource.updatedAtMillis)
+                        )
+                    }"
+                )
+            }
+            //Phone dialer offered only if a phone exists
             if (resource.phone.isNotBlank()) {
                 Button(
-                    onClick = { open(Intent(Intent.ACTION_DIAL, Uri.fromParts("tel", resource.phone, null))) },
+                    onClick = {
+                        open(
+                            Intent(
+                                Intent.ACTION_DIAL,
+                                Uri.fromParts(
+                                    "tel",
+                                    resource.phone,
+                                    null
+                                )
+                            )
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Call ${resource.phone}") }
+                ) {
+                    Text("Call ${resource.phone}")
+                }
             }
-            OutlinedButton(
-                onClick = { open(Intent(Intent.ACTION_VIEW, Uri.parse(resource.sourceUrl))) },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("View source") }
+            //Source webpage
+            val sourceUri = Uri.parse(resource.sourceUrl)
+            if (
+                sourceUri.scheme == "https" ||
+                sourceUri.scheme == "http"
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        open(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                sourceUri
+                            )
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("View source")
+                }
+            }
+            Text(
+                text = "Contact the provider or 211 to verify " +
+                        "hours, eligibility and availability before travelling.",
+                style = MaterialTheme.typography.bodySmall
+            )
             OutlinedButton(
                 onClick = onViewMapClick,
                 modifier = Modifier.fillMaxWidth()
-            ) { Text("View Map") }
-            Text("Map preview only. GPS and directions are planned for a later version.", style = MaterialTheme.typography.bodySmall)
+            ) {
+                Text("View Map")
+            }
+            Text(
+                text = "Map preview only. GPS and directions " +
+                        "are planned for a later version.",
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
